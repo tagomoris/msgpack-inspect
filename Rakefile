@@ -1,5 +1,9 @@
 require "bundler/gem_tasks"
 
+require 'fileutils'
+require 'rake/testtask'
+require 'rake/clean'
+
 Rake::TestTask.new(:test) do |t|
   # To run test for only one file (or file path pattern)
   #  $ bundle exec rake test TEST=test/test_specified_path.rb
@@ -11,4 +15,4 @@ Rake::TestTask.new(:test) do |t|
   t.ruby_opts = ["-Eascii-8bit:ascii-8bit"]
 end
 
-task :default => :spec
+task :default => :test
