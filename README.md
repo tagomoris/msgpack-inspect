@@ -1,8 +1,6 @@
-# Msgpack::Inspect
+# msgpack-inspect
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/msgpack/inspect`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+This is a command line tool to inspect/show a data serialized by [MessagePack](http://msgpack.org/).
 
 ## Installation
 
@@ -22,15 +20,34 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+```
+Usage: msgpack-inspect [options] FILE
 
-## Development
+Options:
 
-After checking out the repo, run `bin/setup` to install dependencies. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+    -f, --format FORMAT              output format of inspection result (yaml/json) [default: yaml]
+    -r, --require LIB                ruby file path to require (to load ext type definitions)
+    -h, --help                       Show this message
+```
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+FILE is a file which msgpack binary stored. Specify `-` to inspect data from STDIN.
+This command shows the all data contained in specified format (YAML in default).
+
+```
+---
+- :format: :false
+  :header: c2
+  :data: c2
+  :value: false
+- :format: :true
+  :header: c3
+  :data: c3
+  :value: true
+```
+
+TODO: show more example
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/msgpack-inspect.
+Bug reports and pull requests are welcome on GitHub at [https://github.com/tafomoris/msgpack-inspect].
 
