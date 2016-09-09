@@ -204,7 +204,7 @@ module MessagePack
       MAX_INT64 = 2 ** 64
 
       def generate_int(io, fmt, header, current)
-        if :fixint
+        if fmt == :fixint
           current[:data] = hex(header)
           v = header.unpack('C').first
           if v & 0b11100000 > 0 # negative fixint
@@ -232,7 +232,7 @@ module MessagePack
           v1 = io.read(4)
           v2 = io.read(4)
           current[:data] = hex(v1) + hex(v2)
-          current[:value] = (v1.unpack('N').first << 32) & v2.unpack('N').first
+          current[:value] = (v1.unpack('N').first << 32) | v2.unpack('N').first
         when :int8
           v = io.read(1)
           current[:data] = hex(v)
@@ -249,7 +249,7 @@ module MessagePack
           v1 = io.read(4)
           v2 = io.read(4)
           current[:data] = hex(v1) + hex(v2)
-          current[:value] = (v1.unpack('N').first << 32) & v2.unpack('N').first - MAX_INT64
+          current[:value] = (v1.unpack('N').first << 32) | v2.unpack('N').first - MAX_INT64
         else
           raise "unknown int format #{fmt}"
         end
