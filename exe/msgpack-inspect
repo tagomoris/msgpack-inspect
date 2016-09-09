@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+
+here = File.dirname(__FILE__)
+$LOAD_PATH << File.expand_path(File.join(here, '..', 'lib'))
+require 'msgpack/inspect/command'
+MessagePack::Inspect::Command.execute(ARGV.dup)
