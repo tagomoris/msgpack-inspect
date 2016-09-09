@@ -290,7 +290,7 @@ module MessagePack
         current[:data] = hex(v)
         if [:fixstr, :str8, :str16, :str32].include?(fmt)
           begin
-            current[:value] = v.encode('UTF-8')
+            current[:value] = v.force_encoding('UTF-8')
           rescue
             current[:error] = $!.message
           end
