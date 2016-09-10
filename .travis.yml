@@ -1,0 +1,17 @@
+language: ruby
+
+rvm:
+  - 2.3
+
+os:
+  - linux
+  - osx
+
+sudo: false
+
+branches:
+  only:
+    - master
+
+gemfile:
+  - Gemfile
