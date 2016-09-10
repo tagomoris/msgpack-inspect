@@ -25,6 +25,16 @@ class MessagePackInspectorTest < ::Test::Unit::TestCase
       assert_equal "msgpack format 'NEVER USED' specified", ins.data[4][:error]
     end
 
+    test 'str' do
+      str = ["Hello", "こんにちは"].map{|s| MessagePack.pack(s) }.join
+      src = StringIO.new(str)
+      ins = MessagePack::Inspect::Inspector.new(src)
+      assert_equal :fixstr, ins.data[0][:format]
+      assert_equal "Hello", ins.data[0][:value]
+      assert_equal :fixstr, ins.data[1][:format]
+      assert_equal "こんにちは", ins.data[1][:value]
+    end
+
     test 'int' do
       ## more test cases
       str = [0, ((1 << 64) - 1)].map{|i| MessagePack.pack(i) }.join
