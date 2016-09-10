@@ -238,18 +238,33 @@ module MessagePack
           current[:data] = hex(v)
           current[:value] = v.unpack('c').first
         when :int16
-          v = io.read(1)
-          current[:data] = hex(v)
-          current[:value] = v.unpack('n').first - MAX_INT16
-        when :int32
           v = io.read(2)
           current[:data] = hex(v)
-          current[:value] = v.unpack('N').first - MAX_INT32
+          n = v.unpack('n').first
+          if (n & 0x8000) > 0 # negative
+            current[:value] = n - MAX_INT16
+          else
+            current[:value] = n
+          end
+        when :int32
+          v = io.read(4)
+          current[:data] = hex(v)
+          n = v.unpack('N').first
+          if n & 0x80000000 > 0 # negative
+            current[:value] = n - MAX_INT32
+          else
+            current[:value] = n
+          end
         when :int64
           v1 = io.read(4)
           v2 = io.read(4)
           current[:data] = hex(v1) + hex(v2)
-          current[:value] = (v1.unpack('N').first << 32) | v2.unpack('N').first - MAX_INT64
+          n = (v1.unpack('N').first << 32) | v2.unpack('N').first
+          if n & 0x8000_0000_0000_0000 > 0 # negative
+            current[:value] = n - MAX_INT64
+          else
+            current[:value] = n
+          end
         else
           raise "unknown int format #{fmt}"
         end
