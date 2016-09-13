@@ -191,7 +191,7 @@ class MessagePackInspectorTest < ::Test::Unit::TestCase
     )
     test 'str/bin long data' do |data|
       fmt, header, length, leaf, encoding = data
-      io = Tempfile.new
+      io = Tempfile.new("msgpack-inspect-test-")
       io.write header
       (length / leaf.bytesize).times{ io.write leaf }
       io.rewind
