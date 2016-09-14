@@ -49,5 +49,5 @@ TODO: show more example
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at [https://github.com/tafomoris/msgpack-inspect].
+Bug reports and pull requests are welcome on GitHub at [https://github.com/tagomoris/msgpack-inspect].
 
