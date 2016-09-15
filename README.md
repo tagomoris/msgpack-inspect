@@ -45,6 +45,13 @@ This command shows the all data contained in specified format (YAML in default).
   :value: true
 ```
 
+## Example
+
+This is a example to inspect a data from STDIN.
+The data corresponds to `{"compact":true,"schema":0}` in JSON.
+
+    $ printf "\x82\xa7compact\xc3\xa6schema\x00" | msgpack-inspect -
+
 TODO: show more example
 
 ## Contributing
