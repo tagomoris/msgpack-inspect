@@ -1,5 +1,4 @@
 require 'helper'
-require 'msgpack/inspect/inspector'
 require 'tempfile'
 
 class MessagePackInspectorTest < ::Test::Unit::TestCase
@@ -12,18 +11,18 @@ class MessagePackInspectorTest < ::Test::Unit::TestCase
         pack(nil),
         "\xc1".b,
       ].join
-      ins = str2ins(str)
-      assert_equal 5, ins.data.size
-      assert_equal :true, ins.data[0][:format]
-      assert_equal true, ins.data[0][:value]
-      assert_equal :true, ins.data[1][:format]
-      assert_equal true, ins.data[1][:value]
-      assert_equal :false, ins.data[2][:format]
-      assert_equal false, ins.data[2][:value]
-      assert_equal :nil, ins.data[3][:format]
-      assert_equal nil, ins.data[3][:value]
-      assert_equal :never_used, ins.data[4][:format]
-      assert_equal "msgpack format 'NEVER USED' specified", ins.data[4][:error]
+      data = str2data(str)
+      assert_equal 5, data.size
+      assert_equal :true, data[0].format
+      assert_equal true, data[0].value
+      assert_equal :true, data[1].format
+      assert_equal true, data[1].value
+      assert_equal :false, data[2].format
+      assert_equal false, data[2].value
+      assert_equal :nil, data[3].format
+      assert_equal nil, data[3].value
+      assert_equal :never_used, data[4].format
+      assert_equal "msgpack format 'NEVER USED' specified", data[4].error
     end
 
     data(
@@ -31,24 +30,24 @@ class MessagePackInspectorTest < ::Test::Unit::TestCase
       'one'  => [1, :fixint, "\x01".b],
       'max'  => [127, :fixint, "\x7f".b],
     )
-    test 'positive fixnum' do |data|
-      num, fmt, str = data
-      ins = str2ins(str)
-      assert_equal 1, ins.data.size
-      assert_equal fmt, ins.data[0][:format]
-      assert_equal num, ins.data[0][:value]
+    test 'positive fixnum' do |results|
+      num, fmt, str = results
+      data = str2data(str)
+      assert_equal 1, data.size
+      assert_equal fmt, data[0].format
+      assert_equal num, data[0].value
     end
 
     data(
       '-1' => [-1, :fixint, "\xff".b],
       '-32' => [-32, :fixint, "\xe0".b],
     )
-    test 'negative fixnum' do |data|
-      num, fmt, str = data
-      ins = str2ins(str)
-      assert_equal 1, ins.data.size
-      assert_equal fmt, ins.data[0][:format]
-      assert_equal num, ins.data[0][:value]
+    test 'negative fixnum' do |results|
+      num, fmt, str = results
+      data = str2data(str)
+      assert_equal 1, data.size
+      assert_equal fmt, data[0].format
+      assert_equal num, data[0].value
     end
 
     data(
@@ -65,12 +64,12 @@ class MessagePackInspectorTest < ::Test::Unit::TestCase
       '64 smal' => [(2**32),   :uint64, "\xcf\x00\x00\x00\x01\x00\x00\x00\x00".b],
       '64 big'  => [(2**64-1), :uint64, "\xcf\xff\xff\xff\xff\xff\xff\xff\xff".b],
     )
-    test 'uint family' do |data|
-      num, fmt, str = data
-      ins = str2ins(str)
-      assert_equal 1, ins.data.size
-      assert_equal fmt, ins.data[0][:format]
-      assert_equal num, ins.data[0][:value]
+    test 'uint family' do |results|
+      num, fmt, str = results
+      data = str2data(str)
+      assert_equal 1, data.size
+      assert_equal fmt, data[0].format
+      assert_equal num, data[0].value
     end
 
     data(
@@ -95,12 +94,12 @@ class MessagePackInspectorTest < ::Test::Unit::TestCase
       '64 pos' => [(2**63-1),  :int64, "\xd3\x7f\xff\xff\xff\xff\xff\xff\xff".b],
       '64 neg' => [-1*(2**63), :int64, "\xd3\x80\x00\x00\x00\x00\x00\x00\x00".b],
     )
-    test 'int family' do |data|
-      num, fmt, str = data
-      ins = str2ins(str)
-      assert_equal 1, ins.data.size
-      assert_equal fmt, ins.data[0][:format]
-      assert_equal num, ins.data[0][:value]
+    test 'int family' do |results|
+      num, fmt, str = results
+      data = str2data(str)
+      assert_equal 1, data.size
+      assert_equal fmt, data[0].format
+      assert_equal num, data[0].value
     end
 
     # 32-bit single precision floating point number
@@ -125,16 +124,16 @@ class MessagePackInspectorTest < ::Test::Unit::TestCase
       '64 -2.0' => [-2.0, :float64, "\xcb\xc0\x00\x00\x00\x00\x00\x00\x00".b],
       '64 1.00...' => [1.0000000000000004, :float64, "\xcb\x3f\xf0\x00\x00\x00\x00\x00\x02".b],
     )
-    test 'float' do |data|
-      proc, fmt, str = data
-      ins = str2ins(str)
-      assert_equal 1, ins.data.size
-      assert_equal fmt, ins.data[0][:format]
+    test 'float' do |results|
+      proc, fmt, str = results
+      data = str2data(str)
+      assert_equal 1, data.size
+      assert_equal fmt, data[0].format
       if proc.is_a?(Proc)
-        assert proc.call(ins.data[0][:value])
+        assert proc.call(data[0].value)
       else
         num = proc
-        assert_equal num, ins.data[0][:value]
+        assert_equal num, data[0].value
       end
     end
 
@@ -152,14 +151,14 @@ class MessagePackInspectorTest < ::Test::Unit::TestCase
       'str32 blank' => [0, '', :str32, "\xdb\x00\x00\x00\x00".b],
       'str32 a char' => [1, 'a', :str32, ("\xdb\x00\x00\x00\x01" + "a").b],
     )
-    test 'str' do |data|
-      length, string, fmt, str = data
-      ins = str2ins(str)
-      assert_equal 1, ins.data.size
-      assert_equal fmt, ins.data[0][:format]
-      assert_equal length, ins.data[0][:length]
-      assert_equal string, ins.data[0][:value]
-      assert_equal 'UTF-8', ins.data[0][:value].encoding.name
+    test 'str' do |results|
+      length, string, fmt, str = results
+      data = str2data(str)
+      assert_equal 1, data.size
+      assert_equal fmt, data[0].format
+      assert_equal length, data[0].length
+      assert_equal string, data[0].value
+      assert_equal 'UTF-8', data[0].value.encoding.name
     end
 
     data(
@@ -171,37 +170,38 @@ class MessagePackInspectorTest < ::Test::Unit::TestCase
       'bin32 blank'  => [0, ''.b, :bin32, "\xc6\x00\x00\x00\x00".b],
       'bin32 a char' => [1, 'a'.b, :bin32, ("\xc6\x00\x00\x00\x01" + "a").b],
     )
-    test 'bin' do |data|
-      length, string, fmt, str = data
-      ins = str2ins(str)
-      assert_equal 1, ins.data.size
-      assert_equal fmt, ins.data[0][:format]
-      assert_equal length, ins.data[0][:length]
-      assert_equal string, ins.data[0][:value]
-      assert_equal 'ASCII-8BIT', ins.data[0][:value].encoding.name
+    test 'bin' do |results|
+      length, string, fmt, str = results
+      data = str2data(str)
+      assert_equal 1, data.size
+      assert_equal fmt, data[0].format
+      assert_equal length, data[0].length
+      assert_equal string, data[0].value
+      assert_equal 'ASCII-8BIT', data[0].value.encoding.name
     end
 
     data(
       'str16' => [:str16, "\xda\xff\xff".b, 0xffff, "a" * 0xff, 'UTF-8'],
       # it's too heavy...
       # 'str32' => [:str32, "\xdb\xff\xff\xff\xff".b, 0xffffffff, 'UTF-8'],
+      # https://gist.github.com/nurse/f9a068c2e84f9324f7626795b212302e
       'str32' => [:str32, "\xdb\x00\x10\x00\x00".b, 0x00100000, "a" * 0x0100, 'UTF-8'],
       'bin16' => [:bin16, "\xc5\xff\xff".b, 0xffff, " " * 0xff, 'ASCII-8BIT'],
       'bin32' => [:bin32, "\xc6\x00\x10\x00\x00".b, 0x00100000, " " * 0x0100, 'ASCII-8BIT'],
     )
-    test 'str/bin long data' do |data|
-      fmt, header, length, leaf, encoding = data
+    test 'str/bin long data' do |results|
+      fmt, header, length, leaf, encoding = results
       io = Tempfile.new("msgpack-inspect-test-")
       io.write header
       (length / leaf.bytesize).times{ io.write leaf }
       io.rewind
 
-      ins = io2ins(io)
-      assert_equal 1, ins.data.size
-      assert_equal fmt, ins.data[0][:format]
-      assert_equal length, ins.data[0][:length]
-      assert_equal length, ins.data[0][:value].bytesize
-      assert_equal encoding, ins.data[0][:value].encoding.name
+      data = io2data(io)
+      assert_equal 1, data.size
+      assert_equal fmt, data[0].format
+      assert_equal length, data[0].length
+      assert_equal length, data[0].value.bytesize
+      assert_equal encoding, data[0].value.encoding.name
     end
 
     data(
@@ -215,14 +215,14 @@ class MessagePackInspectorTest < ::Test::Unit::TestCase
       'array32 a element' => [1, :array32, "\xdd\x00\x00\x00\x01\xc0".b],
       'array32 elements' => [0x0001ffff, :array32, ("\xdd\x00\x01\xff\xff" + "\xc0" * 0x0001ffff).b],
     )
-    test 'array' do |data|
-      length, fmt, str = data
-      ins = str2ins(str)
+    test 'array' do |results|
+      length, fmt, str = results
+      data = str2data(str)
 
-      assert_equal 1, ins.data.size
-      assert_equal fmt, ins.data[0][:format]
-      assert_equal length, ins.data[0][:length]
-      assert_equal length, ins.data[0][:children].size
+      assert_equal 1, data.size
+      assert_equal fmt, data[0].format
+      assert_equal length, data[0].length
+      assert_equal length, data[0].children.size
     end
 
     data(
@@ -236,14 +236,14 @@ class MessagePackInspectorTest < ::Test::Unit::TestCase
       'map32 a element' => [1, :map32, "\xdf\x00\x00\x00\x01\xc0\xc0".b],
       'map32 elements' => [0x0001ffff, :map32, ("\xdf\x00\x01\xff\xff" + "\xc0\xc0" * 0x0001ffff).b],
     )
-    test 'map' do |data|
-      length, fmt, str = data
-      ins = str2ins(str)
+    test 'map' do |results|
+      length, fmt, str = results
+      data = str2data(str)
 
-      assert_equal 1, ins.data.size
-      assert_equal fmt, ins.data[0][:format]
-      assert_equal length, ins.data[0][:length]
-      assert_equal length, ins.data[0][:children].size
+      assert_equal 1, data.size
+      assert_equal fmt, data[0].format
+      assert_equal length, data[0].length
+      assert_equal length, data[0].children.size
     end
 
     # data(

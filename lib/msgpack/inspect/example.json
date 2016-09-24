@@ -1,0 +1,47 @@
+[ { "format": "fixarray",
+    "header": "ff",
+    "length": 3,
+    "children":
+    [ { "format": "string",
+        "header": "e0",
+        "length": 10,
+        "data": "0102030405060708090a",
+        "value": "aaaaaaaaaa"
+      },
+      { "format": "int",
+        "header": "10",
+        "data": "10",
+        "value": 10
+      },
+      { "format": "nil",
+        "header": "a0",
+        "data": "a0",
+        "value": null
+      }
+    ]
+  },
+  { "format": "fixmap",
+    "header": "ff",
+    "length": 2,
+    "children":
+    [ { "key":
+        { "format": "nil",
+          "data": "a0"
+        },
+        "value":
+        { "format": "nil",
+          "data": "a0"
+        }
+      },
+      { "key":
+        { "format": "nil",
+          "data": "a0"
+        },
+        "value":
+        { "format": "nil",
+          "data": "a0"
+        }
+      }
+    ]
+  }
+]

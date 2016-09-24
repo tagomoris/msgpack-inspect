@@ -36,7 +36,8 @@ module MessagePack
           exit 1
         end
 
-        puts MessagePack::Inspect.inspect(io).dump(format)
+        # puts MessagePack::Inspect.inspect(io).dump(format)
+        puts MessagePack::Inspect.inspect(io, format)
       end
     end
   end
