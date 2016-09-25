@@ -8,7 +8,7 @@ module MessagePack
       # value:   object
       # children: (array of Node for array, array of Hash, which has keys of :key and :value for map)
       attr_accessor :format, :header, :length, :exttype, :data, :value, :children, :error
-      attr_accessor :depth
+      attr_accessor :depth, :heading
 
       FORMATS = [
         :fixint, :uint8, :uint16, :uint32, :uint64, :int8, :int16, :int32, :int64,
@@ -253,9 +253,11 @@ module MessagePack
         @exttype = v.unpack('c').first
         val = io.read(@length)
         @data = hex(val)
-        if MSGPACK_LOADED
-          @value = MessagePack.unpack(val)
-        end
+        @value = if MSGPACK_LOADED
+                   MessagePack.unpack(val)
+                 else
+                   nil
+                 end
       end
 
       def is_array?
@@ -274,36 +276,6 @@ module MessagePack
       def []=(key, value)
         raise "adding key-value objects to non-map object" unless is_map?
         @children << {key => value}
-      end
-
-      # use this list in streamer
-      def node(fmt, header)
-        case fmt
-        when :fixint, :uint8, :uint16, :uint32, :uint64, :int8, :int16, :int32, :int64
-          {format: fmt, header: hex(header), data: nil, value: nil}
-        when :fixmap, :map16, :map32
-          {format: fmt, header: hex(header), length: nil, children: []}
-        when :fixarray, :array16, :array32
-          {format: fmt, header: hex(header), length: nil, children: []}
-        when :fixstr, :str8, :str16, :str32
-          {format: fmt, header: hex(header), length: nil, data: nil, value: nil}
-        when :nil
-          {format: fmt, header: hex(header), data: hex(header), value: nil}
-        when :false
-          {format: fmt, header: hex(header), data: hex(header), value: false}
-        when :true
-          {format: fmt, header: hex(header), data: hex(header), value: true}
-        when :bin8, :bin16, :bin32
-          {format: fmt, header: hex(header), length: nil, data: nil, value: nil}
-        when :ext8, :ext16, :ext32, :fixext1, :fixext2, :fixext4, :fixext8, :fixext16
-          {format: fmt, header: hex(header), exttype: nil, length: nil, data: nil} # value will be set if MessagePack is installed
-        when :float32, :float64
-          {format: fmt, header: hex(header), data: nil, value: nil}
-        when :never_used
-          {format: fmt, header: hex(header), data: hex(header), error: "msgpack format 'NEVER USED' specified"}
-        else
-          raise "unknown format specifier: #{fmt}"
-        end
       end
     end
   end

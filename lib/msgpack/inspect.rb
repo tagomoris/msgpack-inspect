@@ -1,5 +1,6 @@
 require "msgpack/inspect/version"
 require "msgpack/inspect/node"
+require "msgpack/inspect/streamer"
 require "msgpack/inspect/inspector"
 
 module MessagePack

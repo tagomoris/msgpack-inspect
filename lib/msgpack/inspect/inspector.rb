@@ -17,12 +17,12 @@ module MessagePack
         if @return_values
           data = []
           until @io.eof?
-            data << dig(0)
+            data << dig(1)
           end
           data
         else
           until @io.eof?
-            dig(0)
+            dig(1)
           end
           nil
         end
@@ -32,37 +32,38 @@ module MessagePack
         str.unpack("H*").first
       end
 
-      def dig(depth)
+      def dig(depth, heading = true)
         header_byte = @io.read(1)
         # TODO: error handling for header_byte:nil or raised exception
         header = header_byte.b
         fmt = parse_header(header)
         node = MessagePack::Inspect::Node.new(fmt, header)
         node.depth = depth # Streamer#depth=
+        node.heading = heading
 
         node.attributes(@io)
 
         if node.is_array?
           node.elements do |i|
             if @return_values
-              node << dig(depth + 1)
+              node << dig(depth + 2) # children -> array
             else
-              dig(depth + 1)
+              dig(depth + 2)
             end
           end
         elsif node.is_map?
           node.elements do |i|
             if @return_values
               key = node.element_key do
-                dig(depth + 1)
+                dig(depth + 3, false) # chilren -> array -> key
               end
               value = node.element_value do
-                dig(depth + 1)
+                dig(depth + 3, false) # children -> array -> value
               end
               node[key] = value
             else
-              node.element_key{ dig(depth + 1) }
-              node.element_value{ dig(depth + 1) }
+              node.element_key{ dig(depth + 3, false) }
+              node.element_value{ dig(depth + 3, false) }
             end
           end
         end
