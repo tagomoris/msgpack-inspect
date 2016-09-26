@@ -1,8 +1,9 @@
-[ { "format": "fixarray",
+[
+  { "format": "fixarray",
     "header": "ff",
     "length": 3,
-    "children":
-    [ { "format": "string",
+    "children": [
+      { "format": "string",
         "header": "e0",
         "length": 10,
         "data": "0102030405060708090a",
@@ -23,8 +24,8 @@
   { "format": "fixmap",
     "header": "ff",
     "length": 2,
-    "children":
-    [ { "key":
+    "children": [
+      { "key":
         { "format": "nil",
           "data": "a0"
         },

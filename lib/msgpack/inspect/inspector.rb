@@ -10,29 +10,28 @@ module MessagePack
       end
 
       def inspect
-        unless @format.nil?
-          MessagePack::Inspect::Node.prepend(MessagePack::Inspect::Streamer.get(@format))
-        end
+        streamer = MessagePack::Inspect::Streamer.get(@format)
+        MessagePack::Inspect::Node.prepend(streamer)
 
-        if @return_values
-          data = []
+        data = []
+        streamer.objects(0) do
+          i = 0
           until @io.eof?
-            data << dig(1)
+            streamer.object(1, i) do
+              obj = dig(streamer, 1)
+              data << obj if @return_values
+            end
+            i += 1
           end
-          data
-        else
-          until @io.eof?
-            dig(1)
-          end
-          nil
         end
+        @return_values ? data : nil
       end
 
       def hex(str)
         str.unpack("H*").first
       end
 
-      def dig(depth, heading = true)
+      def dig(streamer, depth, heading = true)
         header_byte = @io.read(1)
         # TODO: error handling for header_byte:nil or raised exception
         header = header_byte.b
@@ -45,26 +44,24 @@ module MessagePack
 
         if node.is_array?
           node.elements do |i|
-            if @return_values
-              node << dig(depth + 2) # children -> array
-            else
-              dig(depth + 2)
+            streamer.object(depth + 2, i) do
+              obj = dig(streamer, depth + 2) # children -> array
+              node << obj if @return_values
             end
           end
         elsif node.is_map?
           node.elements do |i|
-            if @return_values
-              key = node.element_key do
-                dig(depth + 3, false) # chilren -> array -> key
+            key = node.element_key do
+              streamer.object(depth + 3, 0) do
+                dig(streamer, depth + 3, false) # chilren -> array -> key
               end
-              value = node.element_value do
-                dig(depth + 3, false) # children -> array -> value
-              end
-              node[key] = value
-            else
-              node.element_key{ dig(depth + 3, false) }
-              node.element_value{ dig(depth + 3, false) }
             end
+            value = node.element_value do
+              streamer.object(depth + 3, 0) do
+                dig(streamer, depth + 3, false) # children -> array -> value
+              end
+            end
+            node[key] = value if @return_values
           end
         end
 

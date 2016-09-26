@@ -9,51 +9,33 @@ module MessagePack
           JSONStreamer
         when :jsonl
           JSONLStreamer
+        when nil
+          NullStreamer
         else
           raise ArgumentError, "unknown format #{format}"
         end
       end
     end
 
-      def to_hash
-        basic = {format: @format, header: hex(@header)}
-        if @error
-          basic[:error] = @error
-        end
-
-        case @format
-        when :fixint, :uint8, :uint16, :uint32, :uint64, :int8, :int16, :int32, :int64
-          basic.merge({data: @data, value: @value})
-        when :fixmap, :map16, :map32
-          basic.merge({length: @length, children: @children})
-        when :fixarray, :array16, :array32
-          basic.merge({length: @length, children: @children})
-        when :fixstr, :str8, :str16, :str32
-          basic.merge({length: @length, data: @data, value: @value})
-        when :nil
-          basic.merge({data: @data, value: @value})
-        when :false
-          basic.merge({data: @data, value: @value})
-        when :true
-          basic.merge({data: @data, value: @value})
-        when :bin8, :bin16, :bin32
-          basic.merge({length: @length, data: @data, value: @value})
-        when :ext8, :ext16, :ext32, :fixext1, :fixext2, :fixext4, :fixext8, :fixext16
-          if @value
-            {format: @format, header: hex(@header), exttype: @exttype, length: @length, data: @data, value: @value}
-          else
-            {format: @format, header: hex(@header), exttype: @exttype, length: @length, data: @data}
-          end
-        when :float32, :float64
-          {format: @format, header: hex(@header), data: @data, value: @value}
-        when :never_used
-          {format: @format, header: hex(@header), data: hex(@header)}
-        else
-          raise "unknown format specifier: #{@format}"
-        end
+    module NullStreamer
+      def self.objects(depth)
+        yield
       end
+      def object(index)
+        yield
+      end
+    end
 
     module YAMLStreamer
+      def self.objects(depth)
+        puts "---" if depth == 0
+        yield
+      end
+
+      def self.object(depth, index)
+        yield
+      end
+
       def indent(head = false)
         if head
           "  " * (@depth - 1) + "- "
@@ -140,20 +122,130 @@ module MessagePack
     end
 
     module JSONStreamer
-      def attributes(io)
+      def self.objects(depth)
+        puts "["
+        retval = yield
+        puts "" # newline after tailing object without comma
+        print "  " * depth, "]"
+        retval
+      end
+
+      def self.object(depth, index)
+        if index > 0
+          puts ","
+        end
+        retval = yield
+        puts "" # write newline after last attribute of object
+        print "    " * (depth - 1), "  }"
+        retval
+      end
+
+      def initialize(format, header)
         super
+        @first_line = true
+        @first_kv_pair = true
+      end
+
+      def indent(head = @first_line)
+        if head
+          "    " * (@depth - 1) + "  { "
+        else
+          "    " * @depth
+        end
+      end
+
+      def write(*attrs)
+        attrs.each do |attr|
+          puts "," unless @first_line
+          case attr
+          when :format
+            print %!#{indent}"format": "#{@format.to_s}"!
+          when :header
+            print %!#{indent}"header": "0x#{hex(@header)}"!
+          when :data
+            print %!#{indent}"data": "0x#{@data}"!
+          when :value
+            if @value.nil?
+              print %!#{indent}"value": null!
+            else
+              print %!#{indent}"value": #{@value.inspect}!
+            end
+          when :length
+            print %!#{indent}"length": #{@length}!
+          when :exttype
+            print %!#{indent}"exttype": #{@exttype}!
+          end
+          @first_line = false
+        end
+      end
+
+      def attributes(io)
+        write(:format, :header)
+
+        super
+
+        write(:error) if @error
+
+        case @format
+        when :fixint, :uint8, :uint16, :uint32, :uint64, :int8, :int16, :int32, :int64
+          write(:data, :value)
+        when :fixmap, :map16, :map32
+          write(:length)
+        when :fixarray, :array16, :array32
+          write(:length)
+        when :fixstr, :str8, :str16, :str32
+          write(:length, :data, :value)
+        when :nil
+          write(:data, :value)
+        when :false
+          write(:data, :value)
+        when :true
+          write(:data, :value)
+        when :bin8, :bin16, :bin32
+          write(:length, :data, :value)
+        when :ext8, :ext16, :ext32, :fixext1, :fixext2, :fixext4, :fixext8, :fixext16
+          if @value
+            write(:exttype, :length, :data, :value)
+          else
+            write(:exttype, :length, :data)
+          end
+        when :float32, :float64
+          write(:data, :value)
+        when :never_used
+          write(:data)
+        end
       end
 
       def elements(&block)
+        puts ","
+
+        if @length == 0
+          print %!#{indent}"children": []!
+          return
+        end
+
+        puts %!#{indent}"children": [!
         super
+        puts "" # newline after last element of array/hash
+        print %!#{indent}]!
       end
 
       def element_key
+        if @first_kv_pair
+          @first_kv_pair = false
+        else
+          puts ","
+        end
+        puts  %!#{indent}    { "key":!
         super
       end
 
       def element_value
+        puts "," # tailing key object
+        puts  %!#{indent}      "value":!
         super
+        puts "" # newline after value object
+        print %!#{indent}    }!
       end
     end
 
