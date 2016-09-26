@@ -1,13 +1,14 @@
 require "msgpack/inspect/version"
+require "msgpack/inspect/node"
+require "msgpack/inspect/streamer"
 require "msgpack/inspect/inspector"
 
 module MessagePack
   module Inspect
     FORMATS = MessagePack::Inspect::Inspector::FORMATS
 
-    # MessagePack::Inspect.inspect(io).dump(format)
-    def self.inspect(io)
-      MessagePack::Inspect::Inspector.new(io)
+    def self.inspect(io, format)
+      MessagePack::Inspect::Inspector.new(io, format).inspect
     end
   end
 end

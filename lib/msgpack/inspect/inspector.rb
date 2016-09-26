@@ -1,81 +1,68 @@
 module MessagePack
   module Inspect
-    # Node(Hash)
-    # header:  hex (binary)
-    # exttype: hex (value)
-    # length:  numeric
-    # data:    hex
-    # value:   object
-    # children: (array of Node for array, array of Hash, which has keys of :key and :value for map)
-
     class Inspector
-      FORMATS = [:yaml, :json]
+      FORMATS = [:yaml, :json, :jsonl, nil] # nil is for test (without stream dump)
 
-      attr_reader :data
-
-      def initialize(io)
+      def initialize(io, format = :yaml, return_values: false, output_io: STDOUT)
         @io = io
-        @data = [] # top level objects
-        until io.eof?
-          dig(io){|obj| @data << obj }
-        end
+        @format = format
+        @streamer = MessagePack::Inspect::Streamer.get(@format)
+        @return_values = return_values
+        @output_io = output_io
       end
 
-      def hex(str)
-        str.unpack("H*").first
-      end
-
-      def node(fmt, header)
-        case fmt
-        when :fixint, :uint8, :uint16, :uint32, :uint64, :int8, :int16, :int32, :int64
-          {format: fmt, header: hex(header), data: nil, value: nil}
-        when :fixmap, :map16, :map32
-          {format: fmt, header: hex(header), length: nil, children: []}
-        when :fixarray, :array16, :array32
-          {format: fmt, header: hex(header), length: nil, children: []}
-        when :fixstr, :str8, :str16, :str32
-          {format: fmt, header: hex(header), length: nil, data: nil, value: nil}
-        when :nil
-          {format: fmt, header: hex(header), data: hex(header), value: nil}
-        when :false
-          {format: fmt, header: hex(header), data: hex(header), value: false}
-        when :true
-          {format: fmt, header: hex(header), data: hex(header), value: true}
-        when :bin8, :bin16, :bin32
-          {format: fmt, header: hex(header), length: nil, data: nil, value: nil}
-        when :ext8, :ext16, :ext32, :fixext1, :fixext2, :fixext4, :fixext8, :fixext16
-          {format: fmt, header: hex(header), exttype: nil, length: nil, data: nil} # value will be set if MessagePack is installed
-        when :float32, :float64
-          {format: fmt, header: hex(header), data: nil, value: nil}
-        when :never_used
-          {format: fmt, header: hex(header), data: hex(header), error: "msgpack format 'NEVER USED' specified"}
-        else
-          raise "unknown format specifier: #{fmt}"
-        end
-      end
-
-      def dump(format)
-        case format
-        when :yaml
-          require 'yaml'
-          YAML.dump(@data)
-        when :json
-          begin
-            require 'yajl'
-            Yajl::Encoder.encode(@data)
-          rescue LoadError
-            require 'json'
-            JSON.dump(@data)
+      def inspect
+        data = []
+        @streamer.objects(@output_io, 0) do
+          i = 0
+          until @io.eof?
+            @streamer.object(@output_io, 1, i) do
+              obj = dig(1)
+              data << obj if @return_values
+            end
+            i += 1
           end
-        else
-          raise "unknown format: #{format}"
         end
+        @return_values ? data : nil
       end
 
-      def dig(io, &block)
-        header = io.read(1).b
+      def dig(depth, heading = true)
+        header_byte = @io.read(1)
+        # TODO: error handling for header_byte:nil or raised exception
+        header = header_byte.b
         fmt = parse_header(header)
-        yield generate(io, fmt, header, node(fmt, header))
+        node = MessagePack::Inspect::Node.new(fmt, header)
+        node.extend @streamer
+        node.io = @output_io
+        node.depth = depth # Streamer#depth=
+        node.heading = heading
+
+        node.attributes(@io)
+
+        if node.is_array?
+          node.elements do |i|
+            @streamer.object(@output_io, depth + 2, i) do
+              obj = dig(depth + 2) # children -> array
+              node << obj if @return_values
+            end
+          end
+        elsif node.is_map?
+          node.elements do |i|
+            key = node.element_key do
+              @streamer.object(@output_io, depth + 3, 0) do
+                dig(depth + 3, false) # chilren -> array -> key
+              end
+            end
+            value = node.element_value do
+              @streamer.object(@output_io, depth + 3, 0) do
+                dig(depth + 3, false) # children -> array -> value
+              end
+            end
+            node[key] = value if @return_values
+          end
+        end
+
+        node
       end
 
       HEADER_FIXINT_POSITIVE = Range.new(0x00, 0x7f)
@@ -158,228 +145,6 @@ module MessagePack
         else
           raise "never reach here."
         end
-      end
-
-      def generate_array(io, fmt, header, current)
-        length = case fmt
-                 when :fixarray
-                   header.unpack('C').first & 0x0f
-                 when :array16
-                   io.read(2).unpack('n').first
-                 when :array32
-                   io.read(4).unpack('N').first
-                 else
-                   raise "unknown array fmt #{fmt}"
-                 end
-        current[:length] = length
-        length.times do |i|
-          dig(io){|obj| current[:children] << obj }
-        end
-        current
-      end
-
-      def generate_map(io, fmt, header, current)
-        length = case fmt
-                 when :fixmap
-                   header.unpack('C').first & 0x0f
-                 when :map16
-                   io.read(2).unpack('n').first
-                 when :map32
-                   io.read(4).unpack('N').first
-                 else
-                   raise "unknown map fmt #{fmt}"
-                 end
-        current[:length] = length
-        length.times do |i|
-          pair = {}
-          dig(io){|key| pair[:key] = key }
-          dig(io){|value| pair[:value] = value }
-          current[:children] << pair
-        end
-        current
-      end
-
-      MAX_INT16 = 2 ** 16
-      MAX_INT32 = 2 ** 32
-      MAX_INT64 = 2 ** 64
-
-      def generate_int(io, fmt, header, current)
-        if fmt == :fixint
-          current[:data] = hex(header)
-          v = header.unpack('C').first
-          if v & 0b11100000 > 0 # negative fixint
-            current[:value] = header.unpack('c').first
-          else # positive fixint
-            current[:value] = header.unpack('C').first
-          end
-          return current
-        end
-
-        case fmt
-        when :uint8
-          v = io.read(1)
-          current[:data] = hex(v)
-          current[:value] = v.unpack('C').first
-        when :uint16
-          v = io.read(2)
-          current[:data] = hex(v)
-          current[:value] = v.unpack('n').first
-        when :uint32
-          v = io.read(4)
-          current[:data] = hex(v)
-          current[:value] = v.unpack('N').first
-        when :uint64
-          v1 = io.read(4)
-          v2 = io.read(4)
-          current[:data] = hex(v1) + hex(v2)
-          current[:value] = (v1.unpack('N').first << 32) | v2.unpack('N').first
-        when :int8
-          v = io.read(1)
-          current[:data] = hex(v)
-          current[:value] = v.unpack('c').first
-        when :int16
-          v = io.read(2)
-          current[:data] = hex(v)
-          n = v.unpack('n').first
-          if (n & 0x8000) > 0 # negative
-            current[:value] = n - MAX_INT16
-          else
-            current[:value] = n
-          end
-        when :int32
-          v = io.read(4)
-          current[:data] = hex(v)
-          n = v.unpack('N').first
-          if n & 0x80000000 > 0 # negative
-            current[:value] = n - MAX_INT32
-          else
-            current[:value] = n
-          end
-        when :int64
-          v1 = io.read(4)
-          v2 = io.read(4)
-          current[:data] = hex(v1) + hex(v2)
-          n = (v1.unpack('N').first << 32) | v2.unpack('N').first
-          if n & 0x8000_0000_0000_0000 > 0 # negative
-            current[:value] = n - MAX_INT64
-          else
-            current[:value] = n
-          end
-        else
-          raise "unknown int format #{fmt}"
-        end
-        current
-      end
-
-      def generate_float(io, fmt, header, current)
-        case fmt
-        when :float32
-          v = io.read(4)
-          current[:data] = hex(v)
-          current[:value] = v.unpack('g').first
-        when :float64
-          v = io.read(8)
-          current[:data] = hex(v)
-          current[:value] = v.unpack('G').first
-        else
-          raise "unknown float format #{fmt}"
-        end
-        current
-      end
-
-      def generate_string(io, fmt, header, current)
-        length = case fmt
-                 when :fixstr
-                   header.unpack('C').first & 0b00011111
-                 when :str8, :bin8
-                   io.read(1).unpack('C').first
-                 when :str16, :bin16
-                   io.read(2).unpack('n').first
-                 when :str32, :bin32
-                   io.read(4).unpack('N').first
-                 else
-                   raise "unknown string format #{fmt}"
-                 end
-        current[:length] = length
-        v = io.read(length)
-        current[:data] = hex(v)
-        if [:fixstr, :str8, :str16, :str32].include?(fmt)
-          begin
-            current[:value] = v.force_encoding('UTF-8')
-          rescue
-            current[:error] = $!.message
-          end
-        else
-          current[:value] = v.b
-        end
-        current
-      end
-
-      begin
-        require 'msgpack'
-      rescue LoadError
-        # ignore
-      end
-      MSGPACK_LOADED = MessagePack.const_defined?('Unpacker')
-
-      def generate_ext(io, fmt, header, current)
-        data = ''.b
-        length = case fmt
-                 when :fixext1 then 1
-                 when :fixext2 then 2
-                 when :fixext4 then 4
-                 when :fixext8 then 8
-                 when :fixext16 then 16
-                 when :ext8
-                   v = io.read(1)
-                   data << v
-                   v.unpack('C').first
-                 when :ext16
-                   v = io.read(2)
-                   data << v
-                   v.unpack('n').first
-                 when :ext32
-                   v = io.read(4)
-                   data << v
-                   v.unpack('N').first
-                 else
-                   raise "unknown ext format #{fmt}"
-                 end
-        v = io.read(1)
-        data << v
-        type = v.unpack('c').first
-        current[:length] = length
-        current[:exttype] = type
-        val = io.read(length)
-        data << val
-        current[:data] = hex(val)
-        if MSGPACK_LOADED
-          current[:value] = MessagePack.unpack(val)
-        end
-        current
-      end
-
-      def generate(io, fmt, header, current)
-        case fmt
-        when :fixarray, :array16, :array32
-          generate_array(io, fmt, header, current)
-        when :fixmap, :map16, :map32
-          generate_map(io, fmt, header, current)
-        when :nil, :false, :true, :never_used
-          # nothing to do...
-        when :fixint, :uint8, :uint16, :uint32, :uint64, :int8, :int16, :int32, :int64
-          generate_int(io, fmt, header, current)
-        when :float32, :float64
-          generate_float(io, fmt, header, current)
-        when :fixstr, :str8, :str16, :str32, :bin8, :bin16, :bin32
-          generate_string(io, fmt, header, current)
-        when :ext8, :ext16, :ext32, :fixext1, :fixext2, :fixext4, :fixext8, :fixext16
-          generate_ext(io, fmt, header, current)
-        else
-          raise "unknown format #{fmt}"
-        end
-
-        current
       end
     end
   end
