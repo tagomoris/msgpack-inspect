@@ -8,7 +8,7 @@ module MessagePack
       # value:   object
       # children: (array of Node for array, array of Hash, which has keys of :key and :value for map)
       attr_accessor :format, :header, :length, :exttype, :data, :value, :children, :error
-      attr_accessor :depth, :heading
+      attr_accessor :io, :depth, :heading
 
       FORMATS = [
         :fixint, :uint8, :uint16, :uint32, :uint64, :int8, :int16, :int32, :int64,
@@ -46,6 +46,10 @@ module MessagePack
           @data = hex(header)
           @error = "msgpack format 'NEVER USED' specified"
         end
+
+        @first_line = true
+        @first_obj = true
+        @first_kv_pair = true
       end
 
       def hex(str)

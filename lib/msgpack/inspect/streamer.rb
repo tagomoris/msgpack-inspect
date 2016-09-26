@@ -18,21 +18,21 @@ module MessagePack
     end
 
     module NullStreamer
-      def self.objects(depth)
+      def self.objects(io, depth)
         yield
       end
-      def object(index)
+      def self.object(io, depth, index)
         yield
       end
     end
 
     module YAMLStreamer
-      def self.objects(depth)
-        puts "---" if depth == 0
+      def self.objects(io, depth)
+        io.puts "---" if depth == 0
         yield
       end
 
-      def self.object(depth, index)
+      def self.object(io, depth, index)
         yield
       end
 
@@ -48,17 +48,21 @@ module MessagePack
         attrs.each do |attr|
           case attr
           when :format
-            puts %!#{indent(@heading)}format: "#{@format.to_s}"!
+            @io.puts %!#{indent(@heading)}format: "#{@format.to_s}"!
           when :header
-            puts %!#{indent}header: "0x#{hex(@header)}"!
+            @io.puts %!#{indent}header: "0x#{hex(@header)}"!
           when :data
-            puts %!#{indent}data: "0x#{@data}"!
+            @io.puts %!#{indent}data: "0x#{@data}"!
           when :value
-            puts %!#{indent}value: #{@value.inspect}!
+            if @value.nil?
+              @io.puts %!#{indent}value: null!
+            else
+              @io.puts %!#{indent}value: #{@value.inspect}!
+            end
           when :length
-            puts %!#{indent}length: #{@length}!
+            @io.puts %!#{indent}length: #{@length}!
           when :exttype
-            puts %!#{indent}exttype: #{@exttype}!
+            @io.puts %!#{indent}exttype: #{@exttype}!
           end
         end
       end
@@ -102,48 +106,42 @@ module MessagePack
 
       def elements(&block)
         if @length == 0
-          puts %!#{indent}children: []!
+          @io.puts %!#{indent}children: []!
           return
         end
 
-        puts %!#{indent}children:!
+        @io.puts %!#{indent}children:!
         super
       end
 
       def element_key
-        puts %!#{indent}  - key:!
+        @io.puts %!#{indent}  - key:!
         super
       end
 
       def element_value
-        puts %!#{indent}    value:!
+        @io.puts %!#{indent}    value:!
         super
       end
     end
 
     module JSONStreamer
-      def self.objects(depth)
-        puts "["
+      def self.objects(io, depth)
+        io.puts "["
         retval = yield
-        puts "" # newline after tailing object without comma
-        print "  " * depth, "]"
+        io.puts "" # newline after tailing object without comma
+        io.print "  " * depth, "]"
         retval
       end
 
-      def self.object(depth, index)
+      def self.object(io, depth, index)
         if index > 0
-          puts ","
+          io.puts ","
         end
         retval = yield
-        puts "" # write newline after last attribute of object
-        print "    " * (depth - 1), "  }"
+        io.puts "" # write newline after last attribute of object
+        io.print "    " * (depth - 1), "  }"
         retval
-      end
-
-      def initialize(format, header)
-        super
-        @first_line = true
-        @first_kv_pair = true
       end
 
       def indent(head = @first_line)
@@ -156,24 +154,24 @@ module MessagePack
 
       def write(*attrs)
         attrs.each do |attr|
-          puts "," unless @first_line
+          @io.puts "," unless @first_line
           case attr
           when :format
-            print %!#{indent}"format": "#{@format.to_s}"!
+            @io.print %!#{indent}"format": "#{@format.to_s}"!
           when :header
-            print %!#{indent}"header": "0x#{hex(@header)}"!
+            @io.print %!#{indent}"header": "0x#{hex(@header)}"!
           when :data
-            print %!#{indent}"data": "0x#{@data}"!
+            @io.print %!#{indent}"data": "0x#{@data}"!
           when :value
             if @value.nil?
-              print %!#{indent}"value": null!
+              @io.print %!#{indent}"value": null!
             else
-              print %!#{indent}"value": #{@value.inspect}!
+              @io.print %!#{indent}"value": #{@value.inspect}!
             end
           when :length
-            print %!#{indent}"length": #{@length}!
+            @io.print %!#{indent}"length": #{@length}!
           when :exttype
-            print %!#{indent}"exttype": #{@exttype}!
+            @io.print %!#{indent}"exttype": #{@exttype}!
           end
           @first_line = false
         end
@@ -217,79 +215,73 @@ module MessagePack
       end
 
       def elements(&block)
-        puts ","
+        @io.puts ","
 
         if @length == 0
-          print %!#{indent}"children": []!
+          @io.print %!#{indent}"children": []!
           return
         end
 
-        puts %!#{indent}"children": [!
+        @io.puts %!#{indent}"children": [!
         super
-        puts "" # newline after last element of array/hash
-        print %!#{indent}]!
+        @io.puts "" # newline after last element of array/hash
+        @io.print %!#{indent}]!
       end
 
       def element_key
         if @first_kv_pair
           @first_kv_pair = false
         else
-          puts ","
+          @io.puts ","
         end
-        puts  %!#{indent}    { "key":!
+        @io.puts  %!#{indent}    { "key":!
         super
       end
 
       def element_value
-        puts "," # tailing key object
-        puts  %!#{indent}      "value":!
+        @io.puts "," # tailing key object
+        @io.puts  %!#{indent}      "value":!
         super
-        puts "" # newline after value object
-        print %!#{indent}    }!
+        @io.puts "" # newline after value object
+        @io.print %!#{indent}    }!
       end
     end
 
     module JSONLStreamer
-      def self.objects(depth)
+      def self.objects(io, depth)
         yield
       end
 
-      def self.object(depth, index)
+      def self.object(io, depth, index)
         if depth > 1 && index > 0
-          print ","
+          io.print ","
         end
         retval = yield
-        print "}"
-        puts "" if depth == 1
+        io.print "}"
+        io.puts "" if depth == 1
         retval
-      end
-
-      def initialize(format, header)
-        super
-        @first_obj = true
-        @first_kv_pair = true
       end
 
       def write(*attrs)
         attrs.each do |attr|
-          print "," unless @first_obj
+          @io.print "," unless @first_obj
           case attr
           when :format
-            print %!{"format":"#{@format.to_s}"!
+            @io.print %!{"format":"#{@format.to_s}"!
           when :header
-            print %!"header":"0x#{hex(@header)}"!
+            @io.print %!"header":"0x#{hex(@header)}"!
           when :data
-            print %!"data":"0x#{@data}"!
+            @io.print %!"data":"0x#{@data}"!
           when :value
             if @value.nil?
-              print %!"value":null!
+              @io.print %!"value":null!
             else
-              print %!"value":#{@value.inspect}!
+              @io.print %!"value":#{@value.inspect}!
             end
           when :length
-            print %!"length":#{@length}!
+            @io.print %!"length":#{@length}!
           when :exttype
-            print %!"exttype":#{@exttype}!
+            @io.print %!"exttype":#{@exttype}!
           end
           @first_obj = false
         end
@@ -333,31 +325,31 @@ module MessagePack
       end
 
       def elements(&block)
-        print ","
+        @io.print ","
         if @length == 0
-          print %!"children":[]!
+          @io.print %!"children":[]!
           return
         end
 
-        print %!"children":[!
+        @io.print %!"children":[!
         super
-        print %!]!
+        @io.print %!]!
       end
 
       def element_key
         if @first_kv_pair
           @first_kv_pair = false
         else
-          print ","
+          @io.print ","
         end
-        print  %!{"key":!
+        @io.print  %!{"key":!
         super
       end
 
       def element_value
-        print  %!,"value":!
+        @io.print  %!,"value":!
         super
-        print %!}!
+        @io.print %!}!
       end
     end
   end

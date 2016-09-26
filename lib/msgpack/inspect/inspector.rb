@@ -3,22 +3,21 @@ module MessagePack
     class Inspector
       FORMATS = [:yaml, :json, :jsonl, nil] # nil is for test (without stream dump)
 
-      def initialize(io, format = :yaml, return_values: false)
+      def initialize(io, format = :yaml, return_values: false, output_io: STDOUT)
         @io = io
         @format = format
+        @streamer = MessagePack::Inspect::Streamer.get(@format)
         @return_values = return_values
+        @output_io = output_io
       end
 
       def inspect
-        streamer = MessagePack::Inspect::Streamer.get(@format)
-        MessagePack::Inspect::Node.prepend(streamer)
-
         data = []
-        streamer.objects(0) do
+        @streamer.objects(@output_io, 0) do
           i = 0
           until @io.eof?
-            streamer.object(1, i) do
-              obj = dig(streamer, 1)
+            @streamer.object(@output_io, 1, i) do
+              obj = dig(1)
               data << obj if @return_values
             end
             i += 1
@@ -27,16 +26,14 @@ module MessagePack
         @return_values ? data : nil
       end
 
-      def hex(str)
-        str.unpack("H*").first
-      end
-
-      def dig(streamer, depth, heading = true)
+      def dig(depth, heading = true)
         header_byte = @io.read(1)
         # TODO: error handling for header_byte:nil or raised exception
         header = header_byte.b
         fmt = parse_header(header)
         node = MessagePack::Inspect::Node.new(fmt, header)
+        node.extend @streamer
+        node.io = @output_io
         node.depth = depth # Streamer#depth=
         node.heading = heading
 
@@ -44,21 +41,21 @@ module MessagePack
 
         if node.is_array?
           node.elements do |i|
-            streamer.object(depth + 2, i) do
-              obj = dig(streamer, depth + 2) # children -> array
+            @streamer.object(@output_io, depth + 2, i) do
+              obj = dig(depth + 2) # children -> array
               node << obj if @return_values
             end
           end
         elsif node.is_map?
           node.elements do |i|
             key = node.element_key do
-              streamer.object(depth + 3, 0) do
-                dig(streamer, depth + 3, false) # chilren -> array -> key
+              @streamer.object(@output_io, depth + 3, 0) do
+                dig(depth + 3, false) # chilren -> array -> key
               end
             end
             value = node.element_value do
-              streamer.object(depth + 3, 0) do
-                dig(streamer, depth + 3, false) # children -> array -> value
+              @streamer.object(@output_io, depth + 3, 0) do
+                dig(depth + 3, false) # children -> array -> value
               end
             end
             node[key] = value if @return_values
