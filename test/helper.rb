@@ -4,7 +4,7 @@ require 'stringio'
 
 require 'msgpack/inspect/node'
 require 'msgpack/inspect/inspector'
-# TODO: require streamer
+require 'msgpack/inspect/streamer'
 
 def pack(data)
   MessagePack.pack(data)

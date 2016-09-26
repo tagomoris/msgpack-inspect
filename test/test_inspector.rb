@@ -1,7 +1,7 @@
 require 'helper'
 require 'tempfile'
 
-class MessagePackInspectorTest < ::Test::Unit::TestCase
+class MessagePackInspectInspectorTest < ::Test::Unit::TestCase
   sub_test_case 'basic msgpack formats' do
     test 'true, false, nil, never_used' do
       str = [
