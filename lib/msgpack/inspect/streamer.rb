@@ -250,20 +250,114 @@ module MessagePack
     end
 
     module JSONLStreamer
-      def attributes(io)
+      def self.objects(depth)
+        yield
+      end
+
+      def self.object(depth, index)
+        if depth > 1 && index > 0
+          print ","
+        end
+        retval = yield
+        print "}"
+        puts "" if depth == 1
+        retval
+      end
+
+      def initialize(format, header)
         super
+        @first_obj = true
+        @first_kv_pair = true
+      end
+
+      def write(*attrs)
+        attrs.each do |attr|
+          print "," unless @first_obj
+          case attr
+          when :format
+            print %!{"format":"#{@format.to_s}"!
+          when :header
+            print %!"header":"0x#{hex(@header)}"!
+          when :data
+            print %!"data":"0x#{@data}"!
+          when :value
+            if @value.nil?
+              print %!"value":null!
+            else
+              print %!"value":#{@value.inspect}!
+            end
+          when :length
+            print %!"length":#{@length}!
+          when :exttype
+            print %!"exttype":#{@exttype}!
+          end
+          @first_obj = false
+        end
+      end
+
+      def attributes(io)
+        write(:format, :header)
+
+        super
+
+        write(:error) if @error
+
+        case @format
+        when :fixint, :uint8, :uint16, :uint32, :uint64, :int8, :int16, :int32, :int64
+          write(:data, :value)
+        when :fixmap, :map16, :map32
+          write(:length)
+        when :fixarray, :array16, :array32
+          write(:length)
+        when :fixstr, :str8, :str16, :str32
+          write(:length, :data, :value)
+        when :nil
+          write(:data, :value)
+        when :false
+          write(:data, :value)
+        when :true
+          write(:data, :value)
+        when :bin8, :bin16, :bin32
+          write(:length, :data, :value)
+        when :ext8, :ext16, :ext32, :fixext1, :fixext2, :fixext4, :fixext8, :fixext16
+          if @value
+            write(:exttype, :length, :data, :value)
+          else
+            write(:exttype, :length, :data)
+          end
+        when :float32, :float64
+          write(:data, :value)
+        when :never_used
+          write(:data)
+        end
       end
 
       def elements(&block)
+        print ","
+        if @length == 0
+          print %!"children":[]!
+          return
+        end
+
+        print %!"children":[!
         super
+        print %!]!
       end
 
       def element_key
+        if @first_kv_pair
+          @first_kv_pair = false
+        else
+          print ","
+        end
+        print  %!{"key":!
         super
       end
 
       def element_value
+        print  %!,"value":!
         super
+        print %!}!
       end
     end
   end
