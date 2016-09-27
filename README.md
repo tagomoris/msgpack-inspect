@@ -42,7 +42,7 @@ This command shows the all data contained in specified format (YAML in default).
 
 ## Example
 
-This is a example to inspect a data from STDIN.
+This is an example to inspect a data from STDIN.
 The data corresponds to `{"compact":true,"schema":0}` in JSON.
 
 ```
