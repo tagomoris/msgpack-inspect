@@ -110,6 +110,7 @@ if is_in_a_docker_container?
 
   task default: :compile
 else
+  Rake::Task['release'].clear # to clear release tasks to create mruby binary
   require "bundler/gem_tasks"
   require 'rake/testtask'
   # require 'rake/clean'
