@@ -13,7 +13,7 @@ module MessagePack
         opts.separator ""
         opts.separator "Options:"
         opts.separator ""
-        opts.on("-f", "--format FORMAT", "output format of inspection result (yaml/json) [default: yaml]") do |v|
+        opts.on("-f", "--format FORMAT", "output format of inspection result (#{MessagePack::Inspect::FORMATS.compact.join('/')}) [default: yaml]") do |v|
           format = v.to_sym
         end
         opts.on("-r", "--require LIB", "ruby file path to require (to load ext type definitions)") do |path|
