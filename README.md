@@ -30,50 +30,50 @@ This command shows the all data contained in specified format (YAML in default).
 
 ```
 ---
-- :format: :false
-  :header: c2
-  :data: c2
-  :value: false
-- :format: :true
-  :header: c3
-  :data: c3
-  :value: true
+- format: "false"
+  header: "0xc2"
+  data: "0xc2"
+  value: false
+- format: "true"
+  header: "0xc3"
+  data: "0xc3"
+  value: true
 ```
 
 ## Example
 
-This is a example to inspect a data from STDIN.
+This is an example to inspect a data from STDIN.
 The data corresponds to `{"compact":true,"schema":0}` in JSON.
 
 ```
 $ printf "\x82\xa7compact\xc3\xa6schema\x00" | msgpack-inspect -
 ---
-- :format: :fixmap
-  :header: '82'
-  :length: 2
-  :children:
-  - :key:
-      :format: :fixstr
-      :header: a7
-      :length: 7
-      :data: 636f6d70616374
-      :value: compact
-    :value:
-      :format: :true
-      :header: c3
-      :data: c3
-      :value: true
-  - :key:
-      :format: :fixstr
-      :header: a6
-      :length: 6
-      :data: 736368656d61
-      :value: schema
-    :value:
-      :format: :fixint
-      :header: '00'
-      :data: '00'
-      :value: 0
+- format: "fixmap"
+  header: "0x82"
+  length: 2
+  children:
+    - key:
+        format: "fixstr"
+        header: "0xa7"
+        length: 7
+        data: "0x636f6d70616374"
+        value: "compact"
+      value:
+        format: "true"
+        header: "0xc3"
+        data: "0xc3"
+        value: true
+    - key:
+        format: "fixstr"
+        header: "0xa6"
+        length: 6
+        data: "0x736368656d61"
+        value: "schema"
+      value:
+        format: "fixint"
+        header: "0x00"
+        data: "0x00"
+        value: 0
 ```
 
 TODO: show more example
