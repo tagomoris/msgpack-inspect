@@ -4,17 +4,9 @@ This is a command line tool to inspect/show a data serialized by [MessagePack](h
 
 ## Installation
 
-Add this line to your application's Gemfile:
+Released binary files are available from [releases](https://github.com/tagomoris/msgpack-inspect/releases). Download a file for your platform, and use it.
 
-```ruby
-gem 'msgpack-inspect'
-```
-
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
+Otherwise, you can install rubygem version on your CRuby runtime:
 
     $ gem install msgpack-inspect
 
@@ -29,6 +21,8 @@ Options:
     -r, --require LIB                ruby file path to require (to load ext type definitions)
     -h, --help                       Show this message
 ```
+
+`-r` option is available with rubygem version, and unavailable with mruby binary release.
 
 FILE is a file which msgpack binary stored. Specify `-` to inspect data from STDIN.
 This command shows the all data contained in specified format (YAML in default).
