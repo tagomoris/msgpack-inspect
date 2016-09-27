@@ -149,7 +149,9 @@ module MessagePack
           v1 = io.read(4)
           v2 = io.read(4)
           @data = hex(v1) + hex(v2)
-          @value = (v1.unpack('N').first << 32) | v2.unpack('N').first
+          # mruby doesn't have Bignum, and Float doesn't support #|
+          # @value = (v1.unpack('N').first << 32) | v2.unpack('N').first
+          @value = (v1.unpack('N').first << 32) + v2.unpack('N').first
         when :int8
           v = io.read(1)
           @data = hex(v)
@@ -176,11 +178,18 @@ module MessagePack
           v1 = io.read(4)
           v2 = io.read(4)
           @data = hex(v1) + hex(v2)
-          n = (v1.unpack('N').first << 32) | v2.unpack('N').first
-          @value = if n & 0x8000_0000_0000_0000 > 0 # negative
-                     n - MAX_INT64
-                   else
-                     n
+          # mruby doesn't have Bignum, and Float doesn't support #|
+          # n = (v1.unpack('N').first << 32) | v2.unpack('N').first
+          # @value = if n & 0x8000_0000_0000_0000 > 0 # negative
+          #            n - MAX_INT64
+          #          else
+          #            n
+          #          end
+          upper = v1.unpack('N').first
+          @value = if upper & 0x8000_0000 > 0 # negative
+                     (upper << 32) + v2.unpack('N').first - MAX_INT64
+                   else # positive
+                     (upper << 32) + v2.unpack('N').first
                    end
         else
           raise "unknown int format #{@format}"
@@ -220,8 +229,8 @@ module MessagePack
         if [:fixstr, :str8, :str16, :str32].include?(@format)
           begin
             @value = v.force_encoding('UTF-8')
-          rescue
-            @error = $!.message
+          rescue => e
+            @error = e.message
           end
         else
           @value = v.b
