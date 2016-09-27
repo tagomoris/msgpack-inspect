@@ -19,12 +19,6 @@ Rake::Task[:mruby].invoke unless Dir.exist?(mruby_root)
 load "#{mruby_root}/Rakefile"
 Rake::Task['test'].clear # to clear test task of mruby/Rakefile
 
-load File.join(File.expand_path(File.dirname(__FILE__)), "mrbgem.rake")
-
-current_gem = MRuby::Gem.current
-app_version = MRuby::Gem.current.version
-APP_VERSION = (app_version.nil? || app_version.empty?) ? "unknown" : app_version
-
 desc "compile binary"
 task :compile => [:all] do
   Dir.chdir(mruby_root) do
@@ -108,6 +102,12 @@ Rake.application.tasks.each do |task|
 end
 
 if is_in_a_docker_container?
+  load File.join(File.expand_path(File.dirname(__FILE__)), "mrbgem.rake")
+
+  current_gem = MRuby::Gem.current
+  app_version = MRuby::Gem.current.version
+  APP_VERSION = (app_version.nil? || app_version.empty?) ? "unknown" : app_version
+
   task default: :compile
 else
   require "bundler/gem_tasks"
