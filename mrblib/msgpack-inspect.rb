@@ -1,3 +1,14 @@
+class String
+  # It's only for mruby... Encoding of String are defined by MRB_UTF8_STRING (or undef it) on build time.
+  # Default is disabled, and this tool is built under that configuration.
+  def force_encoding(encoding)
+    self
+  end
+  def b
+    self
+  end
+end
+
 def show_usage
   msg = <<-EOL
 Usage: msgpack-inspect [options] FILE"
