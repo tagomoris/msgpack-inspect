@@ -17,12 +17,13 @@ Usage: msgpack-inspect [options] FILE
 
 Options:
 
-    -f, --format FORMAT              output format of inspection result (yaml/json) [default: yaml]
+    -f, --format FORMAT              output format of inspection result (yaml/json/jsonl) [default: yaml]
     -r, --require LIB                ruby file path to require (to load ext type definitions)
+    -v, --version                    Show version of this software
     -h, --help                       Show this message
 ```
 
-`-r` option is available with rubygem version, and unavailable with mruby binary release.
+`-r` option is available oly with rubygem version, and unavailable with mruby binary release.
 
 FILE is a file which msgpack binary stored. Specify `-` to inspect data from STDIN.
 This command shows the all data contained in specified format (YAML in default).
