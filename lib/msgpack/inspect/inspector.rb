@@ -3,12 +3,13 @@ module MessagePack
     class Inspector
       FORMATS = [:yaml, :json, :jsonl, nil] # nil is for test (without stream dump)
 
-      def initialize(io, format = :yaml, return_values: false, output_io: STDOUT)
+      def initialize(io, format = :yaml, opt)
+        # return_values: false, output_io: STDOUT
         @io = io
         @format = format
         @streamer = MessagePack::Inspect::Streamer.get(@format)
-        @return_values = return_values
-        @output_io = output_io
+        @return_values = opt.fetch(:return_values, false)
+        @output_io = opt.fetch(:output_io, STDOUT)
       end
 
       def inspect
