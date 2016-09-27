@@ -73,5 +73,5 @@ def __main__(argv)
     show_usage
     raise "Unsupported format: #{format}"
   end
-  puts MessagePack::Inspect.inspect(io).dump(format)
+  MessagePack::Inspect.inspect(io, format).inspect
 end
