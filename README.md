@@ -4,7 +4,7 @@ This is a command line tool to inspect/show a data serialized by [MessagePack](h
 
 ## Installation
 
-Released binary files are available from [releases](https://github.com/tagomoris/msgpack-inspect/releases). Download a file for your platform, and use it.
+Executable binary files are available from [releases](https://github.com/tagomoris/msgpack-inspect/releases). Download a file for your platform, and use it.
 
 Otherwise, you can install rubygem version on your CRuby runtime:
 
