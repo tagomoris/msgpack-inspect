@@ -47,7 +47,7 @@ def __main__(argv)
       arg = argv.shift
       if arg == '--'
         parsing_option = false
-      elsif arg.start_with?('-')
+      elsif arg[0] == '-' && arg.length > 1
         show_usage
         raise "Unknown option specified: #{arg}"
       else
