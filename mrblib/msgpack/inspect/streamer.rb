@@ -1,0 +1,1 @@
+../../../lib/msgpack/inspect/streamer.rb
