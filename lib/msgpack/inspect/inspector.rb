@@ -3,33 +3,42 @@ module MessagePack
     class Inspector
       FORMATS = [:yaml, :json, :jsonl, nil] # nil is for test (without stream dump)
 
-      def initialize(io, format = :yaml, opt)
+      def initialize(io, format = :yaml, opt={})
         # return_values: false, output_io: STDOUT
         @io = io
         @format = format
         @streamer = MessagePack::Inspect::Streamer.get(@format)
-        @return_values = opt.fetch(:return_values, false)
-        @output_io = opt.fetch(:output_io, STDOUT)
+        @return_values = opt[:return_values] || false
+        @output_io = opt[:output_io] || STDOUT
       end
 
       def inspect
         data = []
         @streamer.objects(@output_io, 0) do
           i = 0
-          until @io.eof?
-            @streamer.object(@output_io, 1, i) do
-              obj = dig(1)
-              data << obj if @return_values
+          begin
+            while true
+              first_byte = @io.read(1)
+              break if first_byte.nil? && @io.eof?
+              # breaking out of @streamer.object before writing object-start bytes into STDOUT
+              @streamer.object(@output_io, 1, i) do
+                obj = dig(1, true, first_byte)
+                data << obj if @return_values
+              end
+              i += 1
             end
-            i += 1
+          rescue EOFError
+            # end of input
           end
         end
         @return_values ? data : nil
       end
 
-      def dig(depth, heading = true)
-        header_byte = @io.read(1)
+      def dig(depth, heading = true, first_byte = nil)
+        header_byte = first_byte || @io.read(1)
         # TODO: error handling for header_byte:nil or raised exception
+        raise EOFError if header_byte.nil? && @io.eof?
+
         header = header_byte.b
         fmt = parse_header(header)
         node = MessagePack::Inspect::Node.new(fmt, header)
