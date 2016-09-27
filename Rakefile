@@ -62,7 +62,6 @@ task :release => :compile do
 
         Dir.chdir(arch) do
           arch_release = "#{app_name}-#{arch}"
-          puts "current dir #{Dir.pwd}"
           puts "Writing #{release_path}/#{arch_release}.tgz"
           `tar czf #{release_path}/#{arch_release}.tgz *`
         end
