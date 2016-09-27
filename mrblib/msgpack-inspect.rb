@@ -14,7 +14,7 @@ def show_usage
 Usage: msgpack-inspect [options] FILE"
 
 Options:
-  -f, --format FORMAT   Output format of inspection result (yaml/json) [default: yaml]
+  -f, --format FORMAT   Output format of inspection result (#{MessagePack::Inspect::FORMATS.reject{|v| v.nil? }.join('/')}) [default: yaml]
   -r, --require LIB     (Not supported in binary executable)
   -h, --help            Show this message
   -v, --version         Show version of this software
