@@ -1,5 +1,6 @@
 require 'optparse'
 require 'msgpack/inspect'
+require 'msgpack/inspect/version'
 
 module MessagePack
   module Inspect
@@ -17,6 +18,10 @@ module MessagePack
         end
         opts.on("-r", "--require LIB", "ruby file path to require (to load ext type definitions)") do |path|
           require path
+        end
+        opts.on("-v", "--version", "Show version of this software") do
+          puts "msgpack-inspect #{MessagePack::Inspect::VERSION}"
+          exit
         end
         opts.on_tail("-h", "--help", "Show this message") do
           puts opts
